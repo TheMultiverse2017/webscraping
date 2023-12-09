@@ -4,14 +4,14 @@ use GuzzleHttp\Client;
 trait scrapeTrait {
 
     public function scrapeDeliveroo($postalCode="") {
+        $apiKey = "8922b3fd29dc4ea0b1931875e214cbf7"; // Replace with your actual API key
+        $coordinates = $this->getLatLngFromPostalCode($postalCode, $apiKey);
+        return $coordinates;
+
         // $hashedlocationCode=$locationCode;
         // $URLDelivery='https://deliveroo.co.uk/restaurants/birmingham/birmingham-city-centre/?geohash='.$hashedlocationCode;
         // $URLPickUp='https://deliveroo.co.uk/restaurants/birmingham/birmingham-city-centre/?fulfillment_method=COLLECTION&geohash'.$hashedlocationCode;
         // $postalCode = "B4 7DA"; // Replace this with your desired postal code
-        $apiKey = "8922b3fd29dc4ea0b1931875e214cbf7"; // Replace with your actual API key
-
-        $coordinates = $this->getLatLngFromPostalCode($postalCode, $apiKey);
-        return $coordinates;
     }
 
     function getLatLngFromPostalCode($postalCode, $apiKey) {
