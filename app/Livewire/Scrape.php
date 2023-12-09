@@ -11,14 +11,9 @@ class Scrape extends Component
 
     public $location = '';
     public $result = [] ;
-    public $hash = '';
-    public $neighbors = [] ;
 
     public function find(){
         $this->result=$this->scrapeDeliveroo($this->location);
-        $g = new Geohash();
-        $this->hash = $g->encode($this->result['latitude'],$this->result['longitude']);
-        $this->neighbors = $g->getNeighbors($this->hash);
     }
 
     public function render()
