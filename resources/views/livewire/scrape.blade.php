@@ -4,4 +4,6 @@
             <input type="text" class="form-control" wire:model.live="location"placeholder="Location" aria-label="Location">
             <button type="submit" wire:click="find" class="btn btn-primary" >Find</button>
         </div>
+
+        {{$result['latitude']?? null}},  {{$result['longitude']?? null}}
 </div>
