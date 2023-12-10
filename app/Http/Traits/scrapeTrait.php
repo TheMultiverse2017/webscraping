@@ -38,8 +38,50 @@ use getHtmlData;
             if(isset($collectionsDeliveryUrls) && !empty($collectionsDeliveryUrls)){
                 $pageData=[];
                 foreach ($collectionsDeliveryUrls as $url) {
-                    $pageData=$this->htmlData($url)->query('//script[@id="__NEXT_DATA__" and @type="application/json"]');
+                    // Define the class prefix you want to target (e.g., 'HomeFeedGrid')
+                    $classPrefix = 'HomeFeedGrid';
+
+                    // Use XPath to query for <li> elements with a class containing the specified prefix
+                    $query = "//li[contains(@class, '$classPrefix')]";
+                    $liNodes = $this->htmlData($url)->query($query);
+
+                    // Initialize an array to store the results for the current URL
+                    $urlResults = [];
+
+                    // Loop through the matching <li> elements and extract the information
+                    foreach ($liNodes as $liNode) {
+                        // Get the <div> element within the current <li> element
+                        $divNode = $liNode->getElementsByTagName('div')->item(0);
+
+                        // Check if <div> element exists within the current <li>
+                        if ($divNode) {
+                            // Get the <h3> element within the <div> element
+                            $h3Node = $divNode->getElementsByTagName('h3')->item(0);
+
+                            // Check if <h3> element exists within the <div>
+                            if ($h3Node) {
+                                // Output the text content of the <h3> element
+                                $cat = $h3Node->textContent;
+
+                                // Get the links from <a> tags within the <li> element
+                                $links = [];
+                                foreach ($liNode->getElementsByTagName('a') as $a) {
+                                    $links[] = $a->getAttribute('href');
+                                }
+
+                                // Add the extracted information to the current URL results
+                                $urlResults[] = [
+                                    'cat' => $cat,
+                                    'link' => $links,
+                                ];
+                            }
+                        }
+                    }
+
+                    // Output the results for the current URL
+                    dd($urlResults);
                 }
+
             }
         }
 
