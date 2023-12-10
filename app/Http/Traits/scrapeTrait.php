@@ -8,7 +8,7 @@ use DOMXPath;
 set_time_limit(0);
 
 trait scrapeTrait {
-
+use getHtmlData;
     public function scrapeDeliveroo($postalCode="") {
         $apiKey = "8922b3fd29dc4ea0b1931875e214cbf7"; // Replace with your actual API key
         $coordinates = $this->getLatLngFromPostalCode($postalCode, $apiKey);
@@ -21,9 +21,32 @@ trait scrapeTrait {
         $var1=$var2=$coordinates['city'];
 
         $URLDelivery='https://deliveroo.co.uk/restaurants/'.$var1.'/'.$var2.'/?geohash='.$hashedlocationCode;
-        // $URLPickUp='https://deliveroo.co.uk/restaurants/'.$var1.'/'.$var2.'/?fulfillment_method=collectionUrls&geohash'.$hashedlocationCode;
+        $URLPickUp='https://deliveroo.co.uk/restaurants/'.$var1.'/'.$var2.'/?fulfillment_method=COLLECTION&geohash'.$hashedlocationCode;
 
-        $collectionUrls=[];
+        $collections=$this->getUrls($URLDelivery);
+        if(isset($collections) && !empty($collections)){
+            $collectionsDeliveryUrls=[];
+            $collectionsPickUpUrls=[];
+            foreach ($collections as $collection) {
+                $collectionsDeliveryUrl=$URLDelivery.'&collection='.$collection;
+                $collectionsPickUpUrl=$URLPickUp.'&collection='.$collection;
+                $collectionsDeliveryUrls[]=$collectionsDeliveryUrl;
+                $collectionsPickUpUrls[]=$collectionsPickUpUrl;
+            }
+
+            //Fetch data from html with category
+            if(isset($collectionsDeliveryUrls) && !empty($collectionsDeliveryUrls)){
+                $pageData=[];
+                foreach ($collectionsDeliveryUrls as $url) {
+                    $pageData=$this->htmlData($url)->query('//script[@id="__NEXT_DATA__" and @type="application/json"]');
+                }
+            }
+        }
+
+
+    }
+
+    function getUrls($url){
         // $collectionItems=[
         //     'restaurants',
         //     'grocery',
@@ -33,22 +56,10 @@ trait scrapeTrait {
         // ];
         // Note: PickUp is a direct url like delivery so not added to collectionItems[]
 
-
         // foreach($collectionItems as $collectionItem){
         //     $collectionUrls[] = $URLDelivery.'/&collection='.$collectionItem;
         // }
 
-        $client=new Client();
-        $response=$client->request(
-            'GET',
-            $URLDelivery
-        );
-        $responseStatusCode=$response->getStatusCode();
-        $responseBody=$response->getBody();
-        $html=$responseBody->getContents();
-        $dom = new DOMDocument();
-        @$dom->loadHTML($html);
-        $xPath = new DOMXPath($dom );
         // $spanTexts = $xPath->evaluate("//span[contains(concat(' ', normalize-space(@class), ' '), ' ShortcutTileHorizontal')]/span[@class]/text()");
         // foreach ($spanTexts  as $spanText) {
         //     // $collectionUrls[] = $URLDelivery.'/&collection='.$this->stringReplacement($spanText->nodeValue);
@@ -57,8 +68,8 @@ trait scrapeTrait {
 
         // Use XPath to select the script tag with id="__NEXT_DATA__"
 
-        $scriptElements = $xPath->query('//script[@id="__NEXT_DATA__" and @type="application/json"]');
-        $matchesArray = [];
+        $scriptElements = $this->htmlData($url)->query('//script[@id="__NEXT_DATA__" and @type="application/json"]');
+        $collections = [];
 
         foreach ($scriptElements as $scriptElement) {
             // Extract all occurrences of the content between "id":"collection","value":[" and "]}"
@@ -66,11 +77,12 @@ trait scrapeTrait {
 
             if (!empty($matches[1])) {
                 // Merge the matches into the array
-                $matchesArray = array_merge($matchesArray, $matches[1]);
+                $collections = $this->stringReplacement(array_merge($collections, array_unique($matches[1])));
             }
         }
-        dd($matchesArray);
-        }
+
+        return $collections;
+    }
 
     public function getLatLngFromPostalCode($postalCode, $apiKey) {
         $client = new Client();
@@ -98,17 +110,12 @@ trait scrapeTrait {
     }
 
     function stringReplacement($string){
+        // Replace spaces with '-'
+        $stringReplace = preg_replace('/[ _]/', '-', $string);
+        // Remove special characters except '-'
+        $cleanString = preg_replace('/[^A-Za-z0-9\-]/', '', $stringReplace);
 
-        // Convert to lowercase
-        $lowercaseString = strtolower($string);
-
-        // Remove special characters
-        $cleanString = preg_replace('/[^a-z0-9\s]/', '', $lowercaseString);
-
-        // Replace spaces with hyphens
-        $finalString = str_replace(' ', '-', $cleanString);
-
-        return $finalString;
+        return $cleanString;
     }
 
 }
