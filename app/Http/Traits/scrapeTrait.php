@@ -1,10 +1,13 @@
 <?php
 namespace App\Http\Traits;
+
+use App\Models\scraping;
 use GuzzleHttp\Client;
 use Sk\Geohash\Geohash;
 use Sunra\PhpSimple\HtmlDomParser;
 use DOMDocument;
 use DOMXPath;
+use GuzzleHttp\Exception\RequestException;
 set_time_limit(0);
 
 trait scrapeTrait {
@@ -55,19 +58,77 @@ use getHtmlData;
                                 $links = [];
 
                                 foreach ($liNode->getElementsByTagName('a') as $a) {
-                                    $link = $a->getAttribute('href');
+                                    $link = 'https://deliveroo.co.uk'.$a->getAttribute('href');
 
-                                    // Modify the code to fetch descriptions within span with class containing the dynamic part
-                                    $spanNodes = $this->getElementsByClassContains($a, 'span', 'ccl-');
+                                    //PAGFE SCRAPE START
+                                    $client = new Client();
+                                    $response = $client->request('GET', $link);
+
+                                    $responseStatusCode = $response->getStatusCode();
+                                    $responseBody = $response->getBody();
+                                    $html = $responseBody->getContents();
+
+                                    $dom = new DOMDocument();
+                                    @$dom->loadHTML($html);
+
+                                    $xPath = new DOMXPath($dom);
+
+                                    // Fetching title (H1)
+                                    $title = $xPath->query('//h1')->item(0)->nodeValue;
+
+
+                                    // Fetching timeData
+                                    $timeDataSpans = $xPath->query('//div[@class="UILines-eb427a2507db75b3 ccl-2d0aeb0c9725ce8b ccl-45f32b38c5feda86"][1]//span');
+                                    $timeData = implode(' | ', array_map(function ($node) {
+                                        $nodeValue = $this->cleanString($node->nodeValue);
+                                        return $this->isValidString($nodeValue) ? $nodeValue : null;
+                                    }, iterator_to_array($timeDataSpans)));
+
+                                    // Fetching distanceOpeningData
+                                    $distanceOpeningDataSpans = $xPath->query('//div[@class="UILines-eb427a2507db75b3 ccl-2d0aeb0c9725ce8b ccl-45f32b38c5feda86"][2]//span');
+                                    $distanceOpeningData = implode(' | ', array_map(function ($node) {
+                                        $nodeValue = $this->cleanString($node->nodeValue);
+                                        return $this->isValidString($nodeValue) ? $nodeValue : null;
+                                    }, iterator_to_array($distanceOpeningDataSpans)));
+
+                                    $deliveryTimeSpans = $xPath->query('//span[@class="ccl-649204f2a8e630fd ccl-a396bc55704a9c8a ccl-1672da51ae4fc4b6"]');
+                                    $deliveryTime = implode(' | ', array_map(function ($node) {
+                                        $nodeValue = $this->cleanString($node->nodeValue);
+                                        return $this->isValidString($nodeValue) ? $nodeValue : null;
+                                    }, iterator_to_array($deliveryTimeSpans)));
+
+
+                                    $result = [
+                                        'title' => $this->cleanString($title),
+                                        'timeData' => $timeData,
+                                        'distanceOpeningData' => $distanceOpeningData,
+                                        'deliveryTime' => $deliveryTime,
+                                    ];
+
+                                    // dd($result);
+                                    //PAGFE SCRAPE END
+
+                                    // Modify the code to fetch descriptions within span with class 'ccl-' inside div 'BadgesOverlay-b3276e198d69aa9e'
+                                    $xpath = new DOMXPath($a->ownerDocument);
+                                    $relatedDivNode = $xpath->query(".//div[contains(@class, 'BadgesOverlay-b3276e198d69aa9e')]", $a)->item(0);
                                     $descriptions = [];
 
-                                    foreach ($spanNodes as $spanNode) {
-                                        $descriptions[] = $spanNode->textContent;
+                                    if ($relatedDivNode) {
+                                        $spanNodes = $xpath->query(".//span[starts-with(@class, 'ccl-')]", $relatedDivNode);
+
+                                        foreach ($spanNodes as $spanNode) {
+                                            $descriptions[] = $spanNode->textContent;
+                                            if (!empty($description)) {
+                                                $descriptions[] = $description;
+                                            }
+                                        }
                                     }
 
                                     $links[] = [
+                                        'cat' => $cat,
                                         'link' => $link,
                                         'descriptions' => $descriptions,
+                                        'data' => $result,
                                     ];
                                 }
 
@@ -75,12 +136,15 @@ use getHtmlData;
                                     'cat' => $cat,
                                     'links' => $links,
                                 ];
+                                scraping::create([
+                                    'data'=>json_encode($urlResults,true),
+                                ]);
+
                             }
                         }
                     }
-
-                    dd($urlResults);
                 }
+
 
 
             }
@@ -88,6 +152,15 @@ use getHtmlData;
 
 
     }
+// Function to clean up a string
+function cleanString($str) {
+    // Remove non-printable characters and trim spaces
+    return trim(preg_replace('/[^\x20-\x7E]/', '', $str));
+}
+// Function to check if a string is empty or consists only of certain characters
+function isValidString($str) {
+    return !empty($str) && !preg_match('/^[|·\s]+$/', $str);
+}
 // Helper function to get elements by class containing a specified prefix
 function getElementsByClassContains($element, $tagName, $prefix) {
     $elements = [];

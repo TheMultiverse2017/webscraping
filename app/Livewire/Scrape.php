@@ -11,9 +11,11 @@ class Scrape extends Component
 
     public $location = '';
     public $result = [] ;
-
+    public $message = '';
     public function find(){
         $this->result=$this->scrapeDeliveroo($this->location);
+        $this->message="Data Imported";
+        return $this->message ;
     }
 
     public function render()

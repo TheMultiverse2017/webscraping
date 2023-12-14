@@ -5,4 +5,9 @@
             <button type="submit" wire:click="find" class="btn btn-primary" >Find</button>
         </div>
 
+        @if (!empty($message))
+        <button class="btn btn-success"> {{$message}}</button>
+
+        @endif
+
 </div>
